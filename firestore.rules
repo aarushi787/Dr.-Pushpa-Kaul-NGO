@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (uid)
+    // Fields:
+    //   - uid: string (required) - The unique ID of the user
+    //   - email: string (required, email format) - The user's email address
+    //   - displayName: string (optional) - The user's display name
+    //   - photoURL: string (optional) - The user's profile picture URL
+    //   - role: string (required, enum: ['user', 'admin']) - The user's role
+    //   - createdAt: timestamp (optional) - When the user account was created
+    //
+    // Collection: newsletter_subscribers
+    // Document ID: email
+    // Fields:
+    //   - email: string (required, email format) - The subscriber's email address
+    //   - subscribedAt: timestamp (required) - When the person subscribed
+    //
+    // Collection: contact_submissions
+    // Document ID: submissionId
+    // Fields:
+    //   - name: string (required) - The name of the sender
+    //   - email: string (required, email format) - The email of the sender
+    //   - subject: string (required) - The subject of the message
+    //   - message: string (required) - The content of the message
+    //   - submittedAt: timestamp (required) - When the message was submitted
+    //
+    // Collection: feedback
+    // Document ID: feedbackId
+    // Fields:
+    //   - rating: number (required, 1-5) - The rating
+    //   - comment: string (optional) - The user's comment
+    //   - userId: string (optional) - The ID of the user
+    //   - userEmail: string (optional) - The email of the user
+    //   - submittedAt: timestamp (required) - When the feedback was submitted
+    //   - page: string (optional) - The page where the feedback was left
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "gaarushi89@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['user', 'admin'];
+    }
+
+    function isValidSubscriber(data) {
+      return hasOnlyAllowedFields(['email', 'subscribedAt']) &&
+             data.email is string && isValidEmail(data.email) &&
+             data.subscribedAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /newsletter_subscribers/{email} {
+      allow read: if isAdmin();
+      allow create: if isValidSubscriber(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /contact_submissions/{submissionId} {
+      allow read: if isAdmin();
+      allow create: if hasOnlyAllowedFields(['name', 'email', 'subject', 'message', 'submittedAt']) &&
+                      request.resource.data.name is string && request.resource.data.name.size() < 100 &&
+                      request.resource.data.email is string && isValidEmail(request.resource.data.email) &&
+                      request.resource.data.subject is string && request.resource.data.subject.size() < 200 &&
+                      request.resource.data.message is string && request.resource.data.message.size() < 5000 &&
+                      request.resource.data.submittedAt is timestamp &&
+                      (!isAuthenticated() || isEmailVerified());
+      allow update, delete: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if hasOnlyAllowedFields(['rating', 'comment', 'userId', 'userEmail', 'submittedAt', 'page']) &&
+                      request.resource.data.rating is number && request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+                      (!('comment' in request.resource.data) || (request.resource.data.comment is string && request.resource.data.comment.size() < 1000)) &&
+                      (!('userId' in request.resource.data) || (request.resource.data.userId == request.auth.uid)) &&
+                      (!('userEmail' in request.resource.data) || (request.resource.data.userEmail == request.auth.token.email)) &&
+                      request.resource.data.submittedAt is timestamp &&
+                      (!('page' in request.resource.data) || (request.resource.data.page is string)) &&
+                      (!isAuthenticated() || isEmailVerified());
+      allow update, delete: if isAdmin();
+    }
+
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow create: if isAdmin() && 
+                      hasOnlyAllowedFields(['url', 'category', 'caption', 'uploadedBy', 'createdAt']) &&
+                      request.resource.data.url is string && isValidUrl(request.resource.data.url) &&
+                      request.resource.data.category in ["Medical Camps", "Awareness", "Success Stories"] &&
+                      (!('caption' in request.resource.data) || (request.resource.data.caption is string && request.resource.data.caption.size() < 500)) &&
+                      request.resource.data.uploadedBy == request.auth.uid &&
+                      request.resource.data.createdAt is timestamp;
+      allow update, delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /donations/{donationId} {
+      allow read: if isAdmin();
+      allow create: if true; // In a real app, this might be restricted to server-side or validated Stripe tokens
+      allow update, delete: if isAdmin();
+    }
+  }
+}

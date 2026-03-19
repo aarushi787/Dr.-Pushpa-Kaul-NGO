@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the NGO platform",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the user" },
+        "email": { "type": "string", "format": "email", "description": "The user's email address" },
+        "displayName": { "type": "string", "description": "The user's display name" },
+        "photoURL": { "type": "string", "description": "The user's profile picture URL" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "The user's role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user account was created" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "NewsletterSubscriber": {
+      "title": "Newsletter Subscriber",
+      "description": "A person who has subscribed to the newsletter",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "The subscriber's email address" },
+        "subscribedAt": { "type": "string", "format": "date-time", "description": "When the person subscribed" }
+      },
+      "required": ["email", "subscribedAt"]
+    },
+    "ContactSubmission": {
+      "title": "Contact Submission",
+      "description": "A message from the contact form",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the sender" },
+        "email": { "type": "string", "format": "email", "description": "The email of the sender" },
+        "subject": { "type": "string", "description": "The subject of the message" },
+        "message": { "type": "string", "description": "The content of the message" },
+        "submittedAt": { "type": "string", "format": "date-time", "description": "When the message was submitted" }
+      },
+      "required": ["name", "email", "subject", "message", "submittedAt"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback on the website",
+      "type": "object",
+      "properties": {
+        "rating": { "type": "number", "description": "The rating from 1 to 5" },
+        "comment": { "type": "string", "description": "The user's comment" },
+        "userId": { "type": "string", "description": "The ID of the user who left feedback" },
+        "userEmail": { "type": "string", "description": "The email of the user who left feedback" },
+        "submittedAt": { "type": "string", "format": "date-time", "description": "When the feedback was submitted" },
+        "page": { "type": "string", "description": "The page where the feedback was left" }
+      },
+      "required": ["rating", "submittedAt"]
+    },
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "An image in the NGO gallery",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "The URL of the image" },
+        "category": { "type": "string", "enum": ["Medical Camps", "Awareness", "Success Stories"], "description": "The category of the image" },
+        "caption": { "type": "string", "description": "A brief description of the image" },
+        "uploadedBy": { "type": "string", "description": "The ID of the user who uploaded the image" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the image was added" }
+      },
+      "required": ["url", "category", "createdAt"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "An upcoming medical camp or awareness program",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the event" },
+        "date": { "type": "string", "format": "date", "description": "The date of the event" },
+        "time": { "type": "string", "description": "The time of the event" },
+        "location": { "type": "string", "description": "The location of the event" },
+        "description": { "type": "string", "description": "A description of the event" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the event was created" }
+      },
+      "required": ["title", "date", "time", "location", "createdAt"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "A donation received by the NGO",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number", "description": "The amount donated" },
+        "currency": { "type": "string", "description": "The currency of the donation" },
+        "allocation": { "type": "string", "description": "The fund allocation" },
+        "isRecurring": { "type": "boolean", "description": "Whether the donation is recurring" },
+        "userId": { "type": "string", "description": "The ID of the user who donated" },
+        "userEmail": { "type": "string", "description": "The email of the user who donated" },
+        "donatedAt": { "type": "string", "format": "date-time", "description": "When the donation was made" }
+      },
+      "required": ["amount", "currency", "donatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/newsletter_subscribers/{email}": {
+      "schema": "NewsletterSubscriber",
+      "description": "Newsletter subscriptions"
+    },
+    "/contact_submissions/{submissionId}": {
+      "schema": "ContactSubmission",
+      "description": "Contact form submissions"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "User feedback entries"
+    },
+    "/gallery/{imageId}": {
+      "schema": "GalleryImage",
+      "description": "Gallery images"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Upcoming events"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Donation records"
+    }
+  }
+}
